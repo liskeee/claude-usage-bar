@@ -12,9 +12,9 @@ public class UsageParserTests
         var snap = UsageParser.Parse(Fixtures.Usage, FetchedAt);
 
         Assert.Equal(3, snap.Limits.Count);
-        Assert.Equal(new LimitInfo(LimitKind.Session, "Current session", 26, DateTimeOffset.Parse("2026-10-01T18:00:00.345899+02:00")), snap.Session);
-        Assert.Equal(new LimitInfo(LimitKind.Weekly, "This week", 22, DateTimeOffset.Parse("2026-10-08T08:00:00.345927+02:00")), snap.Weekly);
-        Assert.Equal(new LimitInfo(LimitKind.WeeklyScoped, "Fable this week", 3, DateTimeOffset.Parse("2026-10-08T08:00:00.346176+02:00")), snap.Limits[2]);
+        Assert.Equal(new LimitInfo(LimitKind.Session, 26, DateTimeOffset.Parse("2026-10-01T18:00:00.345899+02:00")), snap.Session);
+        Assert.Equal(new LimitInfo(LimitKind.Weekly, 22, DateTimeOffset.Parse("2026-10-08T08:00:00.345927+02:00")), snap.Weekly);
+        Assert.Equal(new LimitInfo(LimitKind.WeeklyScoped, 3, DateTimeOffset.Parse("2026-10-08T08:00:00.346176+02:00"), "Fable"), snap.Limits[2]);
         Assert.Equal(FetchedAt, snap.FetchedAt);
     }
 
@@ -53,10 +53,12 @@ public class UsageParserTests
     }
 
     [Fact]
-    public void Parse_ScopedLimitWithoutModelName_UsesGenericLabel()
+    public void Parse_ScopedLimitWithoutModelName_HasNoModel()
     {
         const string json = """{"limits":[{"kind":"weekly_scoped","percent":7,"resets_at":null,"scope":null}]}""";
 
-        Assert.Equal("Model this week", Assert.Single(UsageParser.Parse(json, FetchedAt).Limits).Label);
+        var only = Assert.Single(UsageParser.Parse(json, FetchedAt).Limits);
+        Assert.Equal(LimitKind.WeeklyScoped, only.Kind);
+        Assert.Null(only.Model);
     }
 }

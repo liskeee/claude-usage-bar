@@ -1,0 +1,46 @@
+{
+  "limits": {
+    "session": "Current session",
+    "weekly": "This week",
+    "scoped": "{model} this week",
+    "unknownModel": "Model"
+  },
+  "bar": {
+    "session": "5h",
+    "week": "W",
+    "signIn": "Claude: sign in"
+  },
+  "time": {
+    "lessThanMinute": "<1m",
+    "minutes": "{m}m",
+    "hoursMinutes": "{h}h {m}m",
+    "daysHours": "{d}d {h}h",
+    "inAMoment": "in a moment",
+    "in": "in {duration}",
+    "justNow": "just now",
+    "ago": "{duration} ago",
+    "today": "today {time}",
+    "tomorrow": "tomorrow {time}",
+    "otherDay": "{weekday} {day} {month}, {time}",
+    "weekdays": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  },
+  "popup": {
+    "resetLine": "Resets {countdown} · {moment}",
+    "updated": "Updated {ago}",
+    "refreshFailed": "Refresh failed · updated {ago}",
+    "loadFailed": "Couldn't load data",
+    "signIn": "Sign in: run claude in a terminal",
+    "loading": "Loading…",
+    "emptyLoading": "Loading data…",
+    "emptyError": "No data yet · retrying in a few minutes",
+    "emptyNeedsLogin": "No data: Claude Code login expired",
+    "refresh": "Refresh"
+  },
+  "menu": {
+    "refreshNow": "Refresh now",
+    "startWithWindows": "Start with Windows",
+    "exit": "Exit"
+  },
+  "autostartDescription": "Claude usage limits in the taskbar"
+}

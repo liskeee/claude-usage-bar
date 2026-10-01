@@ -8,18 +8,21 @@ namespace ClaudeUsageBar;
 public sealed class App : ApplicationContext
 {
     readonly UsageService service;
+    readonly Texts texts;
     readonly TaskbarWindow bar;
-    readonly DetailsPopup popup = new();
+    readonly DetailsPopup popup;
     readonly ContextMenuStrip menu = new();
     readonly BroadcastWindow broadcast = new();
     readonly System.Windows.Forms.Timer dockTimer = new() { Interval = 2_000 };
     readonly System.Windows.Forms.Timer tickTimer = new() { Interval = 30_000 };
     readonly System.Windows.Forms.Timer refreshTimer = new();
 
-    public App(UsageService service)
+    public App(UsageService service, Texts texts)
     {
         this.service = service;
-        bar = new TaskbarWindow(service.State);
+        this.texts = texts;
+        bar = new TaskbarWindow(service.State, texts);
+        popup = new DetailsPopup(texts);
         service.Changed += state =>
         {
             bar.SetState(state);
@@ -46,12 +49,12 @@ public sealed class App : ApplicationContext
 
     void BuildMenu()
     {
-        var autostart = new ToolStripMenuItem("Start with Windows");
+        var autostart = new ToolStripMenuItem(texts.Menu.StartWithWindows);
         autostart.Click += (_, _) => ToggleAutostart();
-        menu.Items.Add(new ToolStripMenuItem("Refresh now", null, (_, _) => _ = RefreshNowAsync()));
+        menu.Items.Add(new ToolStripMenuItem(texts.Menu.RefreshNow, null, (_, _) => _ = RefreshNowAsync()));
         menu.Items.Add(autostart);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => ExitThread()));
+        menu.Items.Add(new ToolStripMenuItem(texts.Menu.Exit, null, (_, _) => ExitThread()));
         menu.Opening += (_, _) => autostart.Checked = Autostart.IsEnabled;
     }
 
@@ -72,12 +75,12 @@ public sealed class App : ApplicationContext
         popup.ShowAbove(bar.ScreenBounds);
     }
 
-    static void ToggleAutostart()
+    void ToggleAutostart()
     {
         try
         {
             if (Autostart.IsEnabled) Autostart.Disable();
-            else if (Environment.ProcessPath is { } exe) Autostart.Enable(exe);
+            else if (Environment.ProcessPath is { } exe) Autostart.Enable(exe, texts.AutostartDescription);
         }
         catch (Exception ex) { Log.Write($"autostart toggle failed: {ex.Message}"); }
     }

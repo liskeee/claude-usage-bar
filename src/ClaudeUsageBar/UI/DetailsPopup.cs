@@ -5,6 +5,7 @@ namespace ClaudeUsageBar.UI;
 /// Flyout with all limits and reset times; opens above the readout and closes when it loses focus.
 public sealed class DetailsPopup : Form
 {
+    readonly Texts texts;
     UsageState state = UsageState.Initial;
 
     public event Action? RefreshRequested;
@@ -12,8 +13,9 @@ public sealed class DetailsPopup : Form
     /// Environment.TickCount64 of the last hide; lets a click on the readout close the popup instead of reopening it.
     public long HiddenAtTicks { get; private set; }
 
-    public DetailsPopup()
+    public DetailsPopup(Texts texts)
     {
+        this.texts = texts;
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
@@ -92,5 +94,5 @@ public sealed class DetailsPopup : Form
     bool OverRefresh(Point p) => DetailsRenderer.RefreshRect(ClientSize, S).Contains(p);
 
     protected override void OnPaint(PaintEventArgs e) =>
-        DetailsRenderer.Draw(e.Graphics, ClientSize, S, state, DateTimeOffset.Now, Theme.Current);
+        DetailsRenderer.Draw(e.Graphics, ClientSize, S, state, DateTimeOffset.Now, Theme.Current, texts);
 }

@@ -13,8 +13,8 @@ public class BarRendererTests
         new(ServiceStatus.Ok,
             new UsageSnapshot(
             [
-                new LimitInfo(LimitKind.Session, "Current session", session, Now.AddHours(4)),
-                new LimitInfo(LimitKind.Weekly, "This week", week, Now.AddDays(6)),
+                new LimitInfo(LimitKind.Session, session, Now.AddHours(4)),
+                new LimitInfo(LimitKind.Weekly, week, Now.AddDays(6)),
             ], Now),
             "Max 20x", lastSuccess ?? Now, null);
 
@@ -22,7 +22,7 @@ public class BarRendererTests
     {
         var bmp = new Bitmap(BarSize.Width, BarSize.Height, PixelFormat.Format32bppArgb);
         using var g = Graphics.FromImage(bmp);
-        BarRenderer.Draw(g, BarSize, 1f, state, Now, Theme.Dark);
+        BarRenderer.Draw(g, BarSize, 1f, state, Now, Theme.Dark, Lang.En);
         return bmp;
     }
 

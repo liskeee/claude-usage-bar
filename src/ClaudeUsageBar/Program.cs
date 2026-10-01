@@ -1,3 +1,4 @@
+using System.Globalization;
 using ClaudeUsageBar.Core;
 using ClaudeUsageBar.UI;
 
@@ -22,14 +23,18 @@ static class Program
         AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Write($"fatal: {e.ExceptionObject}");
         // async continuations (refresh, CLI renewal) must come back to the UI thread
         SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
-        if (Environment.ProcessPath is { } exe) Autostart.EnableOnFirstRun(exe, dataDir);
+
+        // the Windows display language, if there is a translation for it; English otherwise
+        var texts = Texts.ForCulture(CultureInfo.CurrentUICulture);
+        Log.Write($"language: {CultureInfo.CurrentUICulture.Name} (available: {string.Join(", ", Texts.Available)})");
+        if (Environment.ProcessPath is { } exe) Autostart.EnableOnFirstRun(exe, dataDir, texts.AutostartDescription);
 
         var service = new UsageService(
             new FileCredentialStore(FileCredentialStore.DefaultPath),
             new HttpUsageApi(),
             CliTokenRenewer.CreateDefault(Path.Combine(dataDir, "work")),
             TimeProvider.System);
-        Application.Run(new App(service));
+        Application.Run(new App(service, texts));
         Log.Write("exit");
     }
 }

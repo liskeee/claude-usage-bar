@@ -5,7 +5,7 @@ namespace ClaudeUsageBar.UI;
 
 /// The readout: a layered child window inside the taskbar, just left of the notification area.
 /// A plain WinForms Form gets re-parented to WinForms' hidden parking window, so this is a NativeWindow.
-public sealed class TaskbarWindow(UsageState initial) : NativeWindow, IDisposable
+public sealed class TaskbarWindow(UsageState initial, Texts texts) : NativeWindow, IDisposable
 {
     UsageState state = initial;
     IntPtr taskbar;
@@ -65,7 +65,7 @@ public sealed class TaskbarWindow(UsageState initial) : NativeWindow, IDisposabl
         if (!IsAttached || bounds.Width <= 0 || bounds.Height <= 0) return;
         using var bitmap = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bitmap))
-            BarRenderer.Draw(g, bitmap.Size, Scale, state, DateTimeOffset.Now, Theme.Current);
+            BarRenderer.Draw(g, bitmap.Size, Scale, state, DateTimeOffset.Now, Theme.Current, texts);
         Native.UpdateLayered(Handle, bitmap);
     }
 

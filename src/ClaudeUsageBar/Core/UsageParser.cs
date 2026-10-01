@@ -18,8 +18,8 @@ public static class UsageParser
 
         if (limits.Count == 0)
         {
-            AddLegacy(root, "five_hour", LimitKind.Session, "Current session", limits);
-            AddLegacy(root, "seven_day", LimitKind.Weekly, "This week", limits);
+            AddLegacy(root, "five_hour", LimitKind.Session, limits);
+            AddLegacy(root, "seven_day", LimitKind.Weekly, limits);
         }
         return new UsageSnapshot(limits, fetchedAt);
     }
@@ -30,17 +30,17 @@ public static class UsageParser
         var resets = Date(item, "resets_at");
         return String(item, "kind") switch
         {
-            "session" => new LimitInfo(LimitKind.Session, "Current session", percent, resets),
-            "weekly_all" => new LimitInfo(LimitKind.Weekly, "This week", percent, resets),
-            "weekly_scoped" => new LimitInfo(LimitKind.WeeklyScoped, $"{ModelName(item) ?? "Model"} this week", percent, resets),
+            "session" => new LimitInfo(LimitKind.Session, percent, resets),
+            "weekly_all" => new LimitInfo(LimitKind.Weekly, percent, resets),
+            "weekly_scoped" => new LimitInfo(LimitKind.WeeklyScoped, percent, resets, ModelName(item)),
             _ => null,
         };
     }
 
-    static void AddLegacy(JsonElement root, string property, LimitKind kind, string label, List<LimitInfo> into)
+    static void AddLegacy(JsonElement root, string property, LimitKind kind, List<LimitInfo> into)
     {
         if (root.TryGetProperty(property, out var el) && el.ValueKind == JsonValueKind.Object && Number(el, "utilization") is { } used)
-            into.Add(new LimitInfo(kind, label, used, Date(el, "resets_at")));
+            into.Add(new LimitInfo(kind, used, Date(el, "resets_at")));
     }
 
     static string? ModelName(JsonElement item) =>

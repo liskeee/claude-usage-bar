@@ -8,6 +8,13 @@ static class Fixtures
     public static string Usage => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "usage-2026-10-01.json"));
 }
 
+static class Lang
+{
+    public static readonly Texts En = Texts.Load("en");
+    public static readonly Texts Pl = Texts.Load("pl");
+    public static Texts Get(string code) => code == "pl" ? Pl : En;
+}
+
 sealed class FakeClock(DateTimeOffset now) : TimeProvider
 {
     public DateTimeOffset Now { get; set; } = now;

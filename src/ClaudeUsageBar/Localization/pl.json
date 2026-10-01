@@ -1,0 +1,46 @@
+{
+  "limits": {
+    "session": "Sesja (5 h)",
+    "weekly": "Tydzień",
+    "scoped": "{model} · tydzień",
+    "unknownModel": "Model"
+  },
+  "bar": {
+    "session": "5h",
+    "week": "W",
+    "signIn": "Claude: zaloguj"
+  },
+  "time": {
+    "lessThanMinute": "<1m",
+    "minutes": "{m}m",
+    "hoursMinutes": "{h}h {m}m",
+    "daysHours": "{d}d {h}h",
+    "inAMoment": "za chwilę",
+    "in": "za {duration}",
+    "justNow": "przed chwilą",
+    "ago": "{duration} temu",
+    "today": "dziś {time}",
+    "tomorrow": "jutro {time}",
+    "otherDay": "{weekday} {day}.{monthNumber}, {time}",
+    "weekdays": ["niedz.", "pon.", "wt.", "śr.", "czw.", "pt.", "sob."],
+    "months": ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]
+  },
+  "popup": {
+    "resetLine": "Reset {countdown} · {moment}",
+    "updated": "Odświeżono {ago}",
+    "refreshFailed": "Nie odświeżono · dane {ago}",
+    "loadFailed": "Nie udało się pobrać danych",
+    "signIn": "Zaloguj się: uruchom claude w terminalu",
+    "loading": "Pobieranie…",
+    "emptyLoading": "Pobieranie danych…",
+    "emptyError": "Brak danych · kolejna próba za kilka minut",
+    "emptyNeedsLogin": "Brak danych: logowanie Claude Code wygasło",
+    "refresh": "Odśwież"
+  },
+  "menu": {
+    "refreshNow": "Odśwież teraz",
+    "startWithWindows": "Uruchamiaj przy starcie Windows",
+    "exit": "Zamknij"
+  },
+  "autostartDescription": "Limity Claude na pasku zadań"
+}
