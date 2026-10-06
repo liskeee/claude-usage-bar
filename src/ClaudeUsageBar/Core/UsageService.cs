@@ -22,6 +22,7 @@ public sealed class UsageService(ICredentialStore credentials, IUsageApi api, IT
 
     readonly SemaphoreSlim gate = new(1, 1);
     int rateLimitStreak; // consecutive HTTP 429 answers; the endpoint refills slowly once drained
+    int generation; // bumped by Reset: a refresh that started earlier belongs to the previous account
 
     public UsageState State { get; private set; } = UsageState.Initial;
     public event Action<UsageState>? Changed;
@@ -31,11 +32,29 @@ public sealed class UsageService(ICredentialStore credentials, IUsageApi api, IT
         await gate.WaitAsync(ct);
         try
         {
-            State = await FetchAsync(ct);
+            int started = generation;
+            var next = await FetchAsync(ct);
+            if (started != generation)
+            {
+                rateLimitStreak = 0; // whatever that refresh counted was about the account we left
+                return;
+            }
+            State = next;
             Log.Write($"refresh: {State.Status} session={State.Snapshot?.Session?.UsedPercent} week={State.Snapshot?.Weekly?.UsedPercent} {State.LastError}");
             Changed?.Invoke(State);
         }
         finally { gate.Release(); }
+    }
+
+    /// After an account switch: back to Loading with no data and no backoff, so the previous account's numbers
+    /// never show under the new one.
+    public void Reset()
+    {
+        generation++;
+        rateLimitStreak = 0;
+        renewer.Reset();
+        State = UsageState.Initial;
+        Changed?.Invoke(State);
     }
 
     /// Next automatic refresh: the poll interval, or just after the session limit resets if that comes sooner;

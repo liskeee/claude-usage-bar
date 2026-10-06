@@ -31,7 +31,10 @@ sealed class FakeCreds : ICredentialStore
 sealed class FakeRenewer : ITokenRenewer
 {
     public int Calls { get; private set; }
+    public int Resets { get; private set; }
     public Func<bool> OnRenew { get; set; } = () => false;
+
+    public void Reset() => Resets++;
 
     public Task<bool> TryRenewAsync(CancellationToken ct)
     {
@@ -44,11 +47,13 @@ sealed class FakeApi : IUsageApi
 {
     public List<string> Tokens { get; } = [];
     public Func<string, UsageApiResult> Respond { get; set; } = _ => new(ApiStatus.Ok, Fixtures.Usage);
+    /// When set, wins over Respond: lets a test hold a fetch open.
+    public Func<string, Task<UsageApiResult>>? RespondAsync { get; set; }
 
     public Task<UsageApiResult> FetchAsync(string accessToken, CancellationToken ct)
     {
         Tokens.Add(accessToken);
-        return Task.FromResult(Respond(accessToken));
+        return RespondAsync?.Invoke(accessToken) ?? Task.FromResult(Respond(accessToken));
     }
 }
 

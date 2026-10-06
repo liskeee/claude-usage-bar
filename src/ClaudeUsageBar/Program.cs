@@ -29,10 +29,11 @@ static class Program
         Log.Write($"language: {CultureInfo.CurrentUICulture.Name} (available: {string.Join(", ", Texts.Available)})");
         if (Environment.ProcessPath is { } exe) Autostart.EnableOnFirstRun(exe, dataDir, texts.AutostartDescription);
 
+        var cliLock = new SemaphoreSlim(1, 1); // one writer of the Claude Code login at a time: renewal or account switch
         var service = new UsageService(
             new FileCredentialStore(FileCredentialStore.DefaultPath),
             new HttpUsageApi(),
-            CliTokenRenewer.CreateDefault(Path.Combine(dataDir, "work")),
+            CliTokenRenewer.CreateDefault(Path.Combine(dataDir, "work"), cliLock),
             TimeProvider.System);
         Application.Run(new App(service, texts));
         Log.Write("exit");

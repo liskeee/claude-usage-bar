@@ -7,15 +7,20 @@ public interface ITokenRenewer
 {
     /// Asks the official CLI to refresh its login; false when throttled, missing or failed.
     Task<bool> TryRenewAsync(CancellationToken ct);
+
+    /// Forgets the last attempt: after an account switch the new login may renew right away.
+    void Reset();
 }
 
 /// Renews the Claude Code login with one tiny `claude -p` call: the CLI refreshes its own token file.
-public sealed class CliTokenRenewer(TimeProvider clock, Func<CancellationToken, Task<bool>> runCli) : ITokenRenewer
+/// `cliLock` is shared with the account switcher: the CLI must not write its refreshed tokens over a switch.
+public sealed class CliTokenRenewer(TimeProvider clock, Func<CancellationToken, Task<bool>> runCli, SemaphoreSlim? cliLock = null) : ITokenRenewer
 {
     public static readonly TimeSpan MinInterval = TimeSpan.FromMinutes(30);
     static readonly TimeSpan RunTimeout = TimeSpan.FromSeconds(90);
     static readonly string[] Arguments = ["-p", "ok", "--model", "haiku", "--safe-mode", "--no-session-persistence"];
 
+    readonly SemaphoreSlim cliLock = cliLock ?? new(1, 1);
     DateTimeOffset? lastAttempt;
 
     public async Task<bool> TryRenewAsync(CancellationToken ct)
@@ -23,10 +28,15 @@ public sealed class CliTokenRenewer(TimeProvider clock, Func<CancellationToken, 
         var now = clock.GetUtcNow();
         if (lastAttempt is { } last && now - last < MinInterval) return false;
         lastAttempt = now;
-        return await runCli(ct);
+        await cliLock.WaitAsync(ct);
+        try { return await runCli(ct); }
+        finally { cliLock.Release(); }
     }
 
-    public static CliTokenRenewer CreateDefault(string workDir) => new(TimeProvider.System, ct => RunClaudeAsync(workDir, ct));
+    public void Reset() => lastAttempt = null;
+
+    public static CliTokenRenewer CreateDefault(string workDir, SemaphoreSlim cliLock) =>
+        new(TimeProvider.System, ct => RunClaudeAsync(workDir, ct), cliLock);
 
     public static string? FindClaude()
     {

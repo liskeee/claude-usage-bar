@@ -242,4 +242,55 @@ public class UsageServiceTests
         // fixture: session resets at 18:00:00.345899 → 2 min 0.35 s + 15 s
         Assert.InRange(service.NextDelay().TotalSeconds, 135, 136);
     }
+
+    [Fact]
+    public async Task Reset_ForgetsTheAccountsData_AndBackoff()
+    {
+        creds.Current = Valid();
+        var service = Create();
+        await service.RefreshAsync();
+        api.Respond = _ => new(ApiStatus.RateLimited, Error: "HTTP 429");
+        await service.RefreshAsync();
+        UsageState? seen = null;
+        service.Changed += s => seen = s;
+
+        service.Reset();
+
+        Assert.Same(UsageState.Initial, service.State);
+        Assert.Same(UsageState.Initial, seen);
+        Assert.Equal(UsageService.PollInterval, service.NextDelay());
+        Assert.Equal(1, renewer.Resets);
+    }
+
+    [Fact]
+    public async Task RefreshStartedBeforeReset_DoesNotShowTheOldAccount()
+    {
+        creds.Current = Valid();
+        var response = new TaskCompletionSource<UsageApiResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        api.RespondAsync = _ => response.Task;
+        var service = Create();
+        var refresh = service.RefreshAsync(); // fetching for the account being left
+
+        service.Reset();                      // switched meanwhile
+        response.SetResult(new(ApiStatus.Ok, Fixtures.Usage));
+        await refresh;
+
+        Assert.Same(UsageState.Initial, service.State);
+    }
+
+    [Fact]
+    public async Task RefreshStartedBeforeReset_DoesNotSlowDownTheNewAccount()
+    {
+        creds.Current = Valid();
+        var response = new TaskCompletionSource<UsageApiResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        api.RespondAsync = _ => response.Task;
+        var service = Create();
+        var refresh = service.RefreshAsync();
+
+        service.Reset();
+        response.SetResult(new(ApiStatus.RateLimited, Error: "HTTP 429"));
+        await refresh;
+
+        Assert.Equal(UsageService.PollInterval, service.NextDelay());
+    }
 }
