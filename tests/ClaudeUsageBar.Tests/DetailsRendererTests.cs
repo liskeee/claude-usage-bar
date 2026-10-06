@@ -79,4 +79,24 @@ public class DetailsRendererTests
         Assert.True(rect.Contains(270, 245));
         Assert.False(rect.Contains(30, 245));
     }
+
+    [Fact]
+    public void Draw_WithAccount_ShowsItRightAlignedInTheHeader()
+    {
+        static bool HeaderRightIsBlank(string? account)
+        {
+            var state = new UsageState(ServiceStatus.Loading, null, "Max 20x", null, null);
+            var size = new Size(DetailsRenderer.LogicalWidth, DetailsRenderer.LogicalHeight(state));
+            using var bmp = new Bitmap(size.Width, size.Height);
+            using (var g = Graphics.FromImage(bmp))
+                DetailsRenderer.Draw(g, size, 1f, state, Now, Theme.Dark, Lang.En, account);
+            for (int x = 230; x < 284; x++)
+                for (int y = 16; y < 32; y++)
+                    if (bmp.GetPixel(x, y).ToArgb() != Theme.Dark.Surface.ToArgb()) return false;
+            return true;
+        }
+
+        Assert.True(HeaderRightIsBlank(null));
+        Assert.False(HeaderRightIsBlank("jan.kowalski@firma.pl"));
+    }
 }

@@ -35,7 +35,14 @@ static class Program
             new HttpUsageApi(),
             CliTokenRenewer.CreateDefault(Path.Combine(dataDir, "work"), cliLock),
             TimeProvider.System);
-        Application.Run(new App(service, texts));
+        var accounts = new AccountSwitcher(
+            CliLogin.Default(Path.Combine(dataDir, "backup")),
+            new AccountStore(Path.Combine(dataDir, "accounts.dat")),
+            cliLock,
+            dataDir,
+            (email, dir, ct) => LoginRunner.RunAsync(texts.Accounts.LoginHint, email, dir, ct),
+            TimeProvider.System);
+        Application.Run(new App(service, accounts, texts));
         Log.Write("exit");
     }
 }

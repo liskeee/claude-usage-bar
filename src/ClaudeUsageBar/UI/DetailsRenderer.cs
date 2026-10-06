@@ -39,7 +39,7 @@ public static class DetailsRenderer
         _ => texts.Popup.EmptyLoading,
     };
 
-    public static void Draw(Graphics g, Size size, float s, UsageState state, DateTimeOffset now, Palette p, Texts texts)
+    public static void Draw(Graphics g, Size size, float s, UsageState state, DateTimeOffset now, Palette p, Texts texts, string? account = null)
     {
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
@@ -52,7 +52,13 @@ public static class DetailsRenderer
 
         Primitives.Spark(g, x + 8 * s, 23 * s, 7 * s, p.Clay);
         var heading = string.IsNullOrEmpty(state.PlanName) ? "Claude" : $"Claude {state.PlanName}";
-        Primitives.Text(g, heading, title, p.Text, x + 22 * s, 28 * s);
+        float headingEnd = Primitives.Text(g, heading, title, p.Text, x + 22 * s, 28 * s);
+        if (!string.IsNullOrEmpty(account))
+        {
+            // the signed-in account, right-aligned and muted; cut short rather than overlap the plan
+            var shown = Primitives.Ellipsize(g, account, small, right - headingEnd - 12 * s);
+            Primitives.Text(g, shown, small, p.Muted, right - Primitives.Measure(g, shown, small), 28 * s);
+        }
 
         float y = HeaderHeight * s;
         var limits = state.Snapshot?.Limits ?? Array.Empty<LimitInfo>();

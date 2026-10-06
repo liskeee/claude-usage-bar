@@ -7,6 +7,7 @@ public sealed class DetailsPopup : Form
 {
     readonly Texts texts;
     UsageState state = UsageState.Initial;
+    string? account;
 
     public event Action? RefreshRequested;
 
@@ -46,6 +47,14 @@ public sealed class DetailsPopup : Form
         Height = (int)Math.Round(DetailsRenderer.LogicalHeight(state) * S);
         Top = bottom - Height;
         Invalidate();
+    }
+
+    /// E-mail of the active Claude Code account, shown in the header.
+    public void SetAccount(string? email)
+    {
+        if (email == account) return;
+        account = email;
+        if (Visible) Invalidate();
     }
 
     /// Opens right-aligned above `anchor` (the readout's screen bounds).
@@ -94,5 +103,5 @@ public sealed class DetailsPopup : Form
     bool OverRefresh(Point p) => DetailsRenderer.RefreshRect(ClientSize, S).Contains(p);
 
     protected override void OnPaint(PaintEventArgs e) =>
-        DetailsRenderer.Draw(e.Graphics, ClientSize, S, state, DateTimeOffset.Now, Theme.Current, texts);
+        DetailsRenderer.Draw(e.Graphics, ClientSize, S, state, DateTimeOffset.Now, Theme.Current, texts, account);
 }

@@ -34,6 +34,18 @@ public static class Primitives
     public static float Measure(Graphics g, string text, Font font) =>
         g.MeasureString(text, font, PointF.Empty, StringFormat.GenericTypographic).Width;
 
+    /// `text` cut with "…" to fit `maxWidth`; empty when not even one letter fits.
+    public static string Ellipsize(Graphics g, string text, Font font, float maxWidth)
+    {
+        if (Measure(g, text, font) <= maxWidth) return text;
+        for (int n = text.Length - 1; n > 0; n--)
+        {
+            var cut = text[..n] + "…";
+            if (Measure(g, cut, font) <= maxWidth) return cut;
+        }
+        return "";
+    }
+
     /// Draws text with its baseline at `baseline`; returns the x where the text ends.
     public static float Text(Graphics g, string text, Font font, Color color, float x, float baseline)
     {
