@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using ClaudeUsageBar.Core;
 
 namespace ClaudeUsageBar.Tests;
@@ -49,4 +50,65 @@ sealed class FakeApi : IUsageApi
         Tokens.Add(accessToken);
         return Task.FromResult(Respond(accessToken));
     }
+}
+
+/// A fresh directory under %TEMP%, deleted afterwards.
+sealed class TempDir : IDisposable
+{
+    public string Root { get; } = Directory.CreateTempSubdirectory("cub-test-").FullName;
+
+    public string this[string relative] => Path.Combine(Root, relative);
+
+    public void Dispose()
+    {
+        try { Directory.Delete(Root, recursive: true); }
+        catch (IOException) { }
+    }
+}
+
+/// Logins shaped like Claude Code 2.1's files; every token is fake.
+static class Logins
+{
+    public static AccountLogin Make(string id, string email, string token = "1", string org = "org-1", string? orgName = null,
+        string tier = "default_claude_max_5x", DateTimeOffset? refreshExpires = null) =>
+        new(new JsonObject
+            {
+                ["accessToken"] = $"access-{id}-{token}",
+                ["refreshToken"] = $"refresh-{id}-{token}",
+                ["expiresAt"] = 1790271138070,
+                ["refreshTokenExpiresAt"] = (refreshExpires ?? new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero)).ToUnixTimeMilliseconds(),
+                ["scopes"] = new JsonArray("user:inference", "user:profile"),
+                ["subscriptionType"] = "max",
+                ["rateLimitTier"] = tier,
+            },
+            new JsonObject
+            {
+                ["accountUuid"] = $"acc-{id}",
+                ["emailAddress"] = email,
+                ["organizationUuid"] = org,
+                ["organizationName"] = orgName ?? $"{email}'s Organization",
+                ["displayName"] = id,
+            });
+
+    /// Writes `login` the way the CLI stores it, next to content that must survive a switch.
+    public static void WriteCli(string configDir, string globalConfigPath, AccountLogin login)
+    {
+        Directory.CreateDirectory(configDir);
+        File.WriteAllText(Path.Combine(configDir, ".credentials.json"), $$"""
+            {"mcpOAuth":{"srv|abc":{"serverName":"srv","accessToken":"mcp-token"} },"claudeAiOauth":{{login.Oauth.ToJsonString()}} }
+            """);
+        File.WriteAllText(globalConfigPath, $$"""
+            {
+              "numStartups": 5,
+              "projects": { "C:/Users/Łukasz/zażółć gęślą": { "allowedTools": [] } },
+              "someFutureSetting": { "nested": [1, 2.50, "x"] },
+              "cachedGrowthBookFeatures": { "flag": true },
+              "oauthAccount": {{login.Account.ToJsonString()}},
+              "modelAccessCache": { "opus": true },
+              "cachedUsageUtilization": 0.42
+            }
+            """);
+    }
+
+    public static string AccessToken(AccountLogin login) => login.Oauth["accessToken"]!.GetValue<string>();
 }

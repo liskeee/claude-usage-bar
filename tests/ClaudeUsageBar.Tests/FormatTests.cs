@@ -92,4 +92,12 @@ public class FormatTests
     [InlineData(null, null, "")]
     public void PlanName_PrefersRateLimitTier(string? subscription, string? tier, string expected) =>
         Assert.Equal(expected, Format.PlanName(subscription, tier));
+
+    [Theory]
+    [InlineData("lukasz@gmail.com", "l***@gmail.com")]
+    [InlineData("a@b.pl", "a***@b.pl")]
+    [InlineData("no-at-sign", "***")]
+    [InlineData("", "***")]
+    public void MaskEmail_KeepsFirstLetterAndDomain(string email, string expected) =>
+        Assert.Equal(expected, Format.MaskEmail(email));
 }

@@ -63,5 +63,12 @@ public static class Format
         return char.ToUpperInvariant(subscriptionType[0]) + subscriptionType[1..];
     }
 
+    /// "lukasz@gmail.com" → "l***@gmail.com": enough to tell accounts apart in the log.
+    public static string MaskEmail(string email)
+    {
+        int at = email.IndexOf('@');
+        return at <= 0 ? "***" : $"{email[0]}***{email[at..]}";
+    }
+
     static string Int(int value) => value.ToString(CultureInfo.InvariantCulture);
 }

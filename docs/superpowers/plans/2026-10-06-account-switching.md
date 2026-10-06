@@ -136,7 +136,7 @@ static class Logins
     {
         Directory.CreateDirectory(configDir);
         File.WriteAllText(Path.Combine(configDir, ".credentials.json"), $$"""
-            {"mcpOAuth":{"srv|abc":{"serverName":"srv","accessToken":"mcp-token"}},"claudeAiOauth":{{login.Oauth.ToJsonString()}}}
+            {"mcpOAuth":{"srv|abc":{"serverName":"srv","accessToken":"mcp-token"} },"claudeAiOauth":{{login.Oauth.ToJsonString()}} }
             """);
         File.WriteAllText(globalConfigPath, $$"""
             {
