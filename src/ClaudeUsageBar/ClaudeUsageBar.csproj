@@ -15,4 +15,7 @@
     <!-- one file per language, named by its two-letter ISO code -->
     <EmbeddedResource Include="Localization\*.json" LogicalName="Localization.%(Filename).json" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
+  </ItemGroup>
 </Project>
