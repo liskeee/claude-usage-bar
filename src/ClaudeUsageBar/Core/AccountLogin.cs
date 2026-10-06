@@ -23,6 +23,7 @@ public sealed class AccountLogin(JsonObject oauth, JsonObject account)
     public AccountKey Key => new(String(Account, "accountUuid") ?? "", String(Account, "organizationUuid") ?? "");
     public string Email => String(Account, "emailAddress") ?? "";
     public string? OrganizationName => String(Account, "organizationName");
+    public string? RefreshToken => String(Oauth, "refreshToken");
     public string PlanName => Format.PlanName(String(Oauth, "subscriptionType"), String(Oauth, "rateLimitTier"));
 
     /// After this the refresh token is dead and only a new `claude auth login` helps; null when the CLI didn't say.

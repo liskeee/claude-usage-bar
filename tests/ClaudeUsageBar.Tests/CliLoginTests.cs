@@ -223,4 +223,19 @@ public sealed class CliLoginTests : IDisposable
         Assert.Equal(credentialsBefore, File.ReadAllText(CredentialsPath));
         Assert.Equal("{oops", File.ReadAllText(ConfigPath));
     }
+
+    [Fact]
+    public void Write_ConfigThatCantBeWrittenBack_LeavesTheOldLogin()
+    {
+        Logins.WriteCli(ConfigDir, ConfigPath, a);
+        var credentialsBefore = File.ReadAllText(CredentialsPath);
+        // Node keeps a string cut through an emoji as a lone escaped surrogate: valid JSON that .NET can't write back
+        var config = File.ReadAllText(ConfigPath).Replace("\"numStartups\": 5", "\"numStartups\": 5, \"lastPrompt\": \"x\\ud83dy\"");
+        File.WriteAllText(ConfigPath, config);
+
+        Assert.Throws<IOException>(() => Create().Write(b));
+
+        Assert.Equal(credentialsBefore, File.ReadAllText(CredentialsPath));
+        Assert.Equal(config, File.ReadAllText(ConfigPath));
+    }
 }

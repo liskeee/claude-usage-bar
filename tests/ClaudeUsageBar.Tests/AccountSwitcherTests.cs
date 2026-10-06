@@ -27,9 +27,9 @@ public sealed class AccountSwitcherTests : IDisposable
     CliLogin Cli => new(HomeClaude, HomeConfig, temp["data/backup"]);
     AccountLogin? CliNow => Cli.ReadCurrent();
 
-    AccountSwitcher Create()
+    AccountSwitcher Create(CliLogin? cli = null)
     {
-        var switcher = new AccountSwitcher(Cli, store, cliLock, DataDir, (email, dir, ct) =>
+        var switcher = new AccountSwitcher(cli ?? Cli, store, cliLock, DataDir, (email, dir, ct) =>
         {
             logins.Add((email, dir));
             return login(dir);
@@ -309,5 +309,81 @@ public sealed class AccountSwitcherTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => switcher.Remove(a.Key));
 
         Assert.NotNull(store.Find(a.Key));
+    }
+
+    [Fact]
+    public void Sync_AnotherAccountSignedInByHand_RaisesSwitched()
+    {
+        SignInCli(a);
+        var switcher = Create();
+        switcher.Sync(); // what the app found at startup
+        SignInCli(b);    // `/login` as b in a Claude Code session
+
+        switcher.Sync();
+
+        Assert.Equal(b.Key, switcher.Active?.Key);
+        Assert.Equal(1, switched);
+    }
+
+    [Fact]
+    public void Sync_FirstReadAndTokenRotation_DoNotRaiseSwitched()
+    {
+        SignInCli(a);
+        var switcher = Create();
+        switcher.Sync();
+        SignInCli(Logins.Make("a", "a@example.com", token: "2"));
+
+        switcher.Sync();
+
+        Assert.Equal(0, switched);
+    }
+
+    [Fact]
+    public void Sync_TokensOfAnotherSavedAccount_AreNotSavedUnderThisOne()
+    {
+        store.Upsert(new SavedAccount(a, Now));
+        store.Upsert(new SavedAccount(b, Now));
+        // b's tokens under a's name: a half-finished switch, or the CLI caught between writing its two files
+        SignInCli(new AccountLogin(b.Oauth, a.Account));
+
+        Create().Sync();
+
+        Assert.Equal("access-a-1", Logins.AccessToken(store.Find(a.Key)!.Login));
+    }
+
+    [Fact]
+    public async Task SwitchTo_ConfigThatCantBeWrittenBack_FailsAndKeepsTheActiveAccount()
+    {
+        store.Upsert(new SavedAccount(b, Now));
+        SignInCli(a);
+        File.WriteAllText(HomeConfig, File.ReadAllText(HomeConfig).Replace("\"numStartups\": 5", "\"numStartups\": 5, \"lastPrompt\": \"x\\ud83dy\""));
+        var switcher = Create();
+
+        var ex = await Assert.ThrowsAsync<AccountException>(() => switcher.SwitchToAsync(b.Key));
+
+        Assert.Equal(AccountError.WriteFailed, ex.Error);
+        Assert.True(CliNow!.SameAs(a));
+        switcher.Sync();
+        Assert.Equal("access-a-1", Logins.AccessToken(store.Find(a.Key)!.Login));
+    }
+
+    [Fact]
+    public async Task AddAccount_FreshLoginOfTheActiveAccountThatCantBeWritten_KeepsStoreAndCliInStep()
+    {
+        SignInCli(a);
+        int n = 0;
+        // a busy session rewrites ~/.claude.json every time: the switch gives up after 3 attempts
+        var busy = new CliLogin(HomeClaude, HomeConfig, temp["data/backup"])
+        {
+            BeforeReplace = path => { if (path == HomeConfig) File.AppendAllText(HomeConfig, new string(' ', ++n)); },
+        };
+        var switcher = Create(busy);
+        switcher.Sync();
+        login = LogsIn(Logins.Make("a", "a@example.com", token: "9"));
+
+        await Assert.ThrowsAsync<AccountException>(() => switcher.AddAccountAsync("a@example.com"));
+
+        Assert.Equal("access-a-1", Logins.AccessToken(CliNow!));
+        Assert.Equal("access-a-1", Logins.AccessToken(Assert.Single(store.All).Login));
     }
 }

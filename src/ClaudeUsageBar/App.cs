@@ -18,6 +18,7 @@ public sealed class App : ApplicationContext
     readonly List<ToolStripItem> accountItems = [];
     readonly BroadcastWindow broadcast = new();
     readonly CancellationTokenSource exiting = new();
+    bool syncingForRefresh; // a hand switch found by the refresh's own sync needs no second refresh
     readonly System.Windows.Forms.Timer dockTimer = new() { Interval = 2_000 };
     readonly System.Windows.Forms.Timer tickTimer = new() { Interval = 30_000 };
     readonly System.Windows.Forms.Timer refreshTimer = new();
@@ -37,7 +38,7 @@ public sealed class App : ApplicationContext
         accounts.Switched += () =>
         {
             service.Reset(); // the previous account's numbers must never show under the new one
-            _ = RefreshNowAsync();
+            if (!syncingForRefresh) _ = RefreshNowAsync();
         };
 
         bar.LeftClick += TogglePopup;
@@ -164,7 +165,9 @@ public sealed class App : ApplicationContext
     async Task RefreshNowAsync()
     {
         refreshTimer.Stop();
+        syncingForRefresh = true;
         SyncAccounts();
+        syncingForRefresh = false;
         try { await service.RefreshAsync(); }
         catch (Exception ex) { Log.Write($"refresh failed: {ex}"); }
         refreshTimer.Interval = (int)Math.Clamp(service.NextDelay().TotalMilliseconds, 1_000, int.MaxValue);

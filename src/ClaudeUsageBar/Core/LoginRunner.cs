@@ -43,14 +43,22 @@ public static class LoginRunner
 
         using (process)
         {
-            try { await process.WaitForExitAsync(ct); }
-            catch (OperationCanceledException)
-            {
-                try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
-                throw;
-            }
-            Log.Write($"login: claude auth login exited with {process.ExitCode}");
-            return process.ExitCode == 0;
+            int exitCode = await RunToExitAsync(process, ct);
+            Log.Write($"login: claude auth login exited with {exitCode}");
+            return exitCode == 0;
         }
+    }
+
+    /// Waits for the login window to close; cancelling closes it at once, inside Cancel(): on app exit nothing
+    /// posted to the UI thread afterwards runs, and the window would outlive the app.
+    public static async Task<int> RunToExitAsync(Process process, CancellationToken ct)
+    {
+        using (ct.Register(() =>
+               {
+                   try { process.Kill(entireProcessTree: true); }
+                   catch (Exception ex) when (ex is InvalidOperationException or Win32Exception) { } // already gone
+               }))
+            await process.WaitForExitAsync(ct);
+        return process.ExitCode;
     }
 }

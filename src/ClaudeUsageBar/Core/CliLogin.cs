@@ -112,6 +112,13 @@ public sealed class CliLogin(string configDir, string globalConfigPath, string? 
                 if (attempt == Attempts) throw new IOException($"{Path.GetFileName(path)} not written: {ex.Message}", ex);
                 Thread.Sleep(50 * attempt);
             }
+            catch (Exception ex)
+            {
+                // content .NET can't write back (e.g. a lone escaped surrogate Node left in a string): retrying won't help,
+                // and the caller must still restore what it already wrote
+                Log.Write($"login: {Path.GetFileName(path)} can't be rewritten: {ex.GetType().Name}");
+                throw new IOException($"{Path.GetFileName(path)} can't be rewritten: {ex.Message}", ex);
+            }
         }
     }
 

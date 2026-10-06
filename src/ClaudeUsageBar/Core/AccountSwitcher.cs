@@ -19,6 +19,8 @@ public sealed class AccountSwitcher(
     Func<string?, string, CancellationToken, Task<bool>> runLogin,
     TimeProvider clock)
 {
+    AccountKey? lastSeen; // the last account read from the CLI; null until the first read
+
     public AccountLogin? Active { get; private set; }
     public bool IsLoginRunning { get; private set; }
     public IReadOnlyList<SavedAccount> Accounts => store.All;
@@ -27,13 +29,33 @@ public sealed class AccountSwitcher(
     public event Action? Switched;
 
     /// Reads the active CLI login and saves it when it is new or changed: token rotation, `/login` by hand.
+    /// Another account signed in by hand raises Switched, like a switch from the menu.
     public void Sync()
     {
         Active = cli.ReadCurrent();
         if (Active is null) return;
-        if (store.Find(Active.Key) is { } saved && saved.Login.SameAs(Active)) return;
-        store.Upsert(new SavedAccount(Active, clock.GetUtcNow()));
-        Log.Write($"accounts: saved {Active}");
+        bool switchedByHand = lastSeen is { } before && before != Active.Key;
+        lastSeen = Active.Key;
+        Save(Active);
+        if (switchedByHand)
+        {
+            Log.Write($"accounts: signed in by hand as {Active}");
+            Switched?.Invoke();
+        }
+    }
+
+    void Save(AccountLogin login)
+    {
+        if (store.Find(login.Key) is { } saved && saved.Login.SameAs(login)) return;
+        // another saved account's refresh token under this name is a half-written pair, not a new login: saving it
+        // would replace this account's real tokens
+        if (login.RefreshToken is { } token && store.All.Any(s => s.Key != login.Key && s.Login.RefreshToken == token))
+        {
+            Log.Write($"accounts: {login} carries another account's tokens, not saved");
+            return;
+        }
+        store.Upsert(new SavedAccount(login, clock.GetUtcNow()));
+        Log.Write($"accounts: saved {login}");
     }
 
     public async Task SwitchToAsync(AccountKey key, CancellationToken ct = default)
@@ -68,8 +90,19 @@ public sealed class AccountSwitcher(
             try
             {
                 Sync(); // after the login, not before: the account being left may have rotated its tokens meanwhile
-                store.Upsert(new SavedAccount(login, clock.GetUtcNow()));
-                Apply(login); // also when it is the active account: the fresh login replaces its dead tokens
+                var saved = new SavedAccount(login, clock.GetUtcNow());
+                if (Active?.Key == login.Key)
+                {
+                    // a fresh login of the active account replaces its dead tokens; store it only once the CLI has it,
+                    // or the next Sync would put the dead tokens back over it anyway
+                    Apply(login);
+                    store.Upsert(saved);
+                }
+                else
+                {
+                    store.Upsert(saved);
+                    Apply(login);
+                }
             }
             finally { cliLock.Release(); }
         }
@@ -92,8 +125,9 @@ public sealed class AccountSwitcher(
     void Apply(AccountLogin login)
     {
         try { cli.Write(login); }
-        catch (IOException ex) { throw new AccountException(AccountError.WriteFailed, ex.Message, ex); }
+        catch (Exception ex) { throw new AccountException(AccountError.WriteFailed, ex.Message, ex); }
         Active = cli.ReadCurrent();
+        lastSeen = Active?.Key ?? lastSeen;
         Log.Write($"accounts: switched to {login}");
         Switched?.Invoke();
         if (Active?.Key != login.Key)

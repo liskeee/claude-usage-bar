@@ -57,4 +57,32 @@ public class LoginRunnerTests
         Assert.False(psi.Environment.ContainsKey("ANTHROPIC_API_KEY"));
         Assert.Equal("p", psi.Environment["PATH"]);
     }
+
+    [Fact]
+    public void RunToExit_Cancelled_KillsTheWindowAtOnce()
+    {
+        // on app exit the UI thread's loop is gone: nothing posted to it after Cancel() runs any more
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new DeadContext());
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"), "/d /c ping -n 30 127.0.0.1 >nul")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            })!;
+            using var cts = new CancellationTokenSource();
+            _ = LoginRunner.RunToExitAsync(process, cts.Token);
+
+            cts.Cancel();
+
+            Assert.True(process.WaitForExit(5_000));
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
+
+    sealed class DeadContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback d, object? state) { }
+    }
 }
