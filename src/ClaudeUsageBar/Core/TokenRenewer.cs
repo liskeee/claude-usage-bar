@@ -56,6 +56,15 @@ public sealed class CliTokenRenewer(TimeProvider clock, Func<CancellationToken, 
         return null;
     }
 
+    /// Never inherit auth, config dir or proxy settings from a Claude session that happened to start us.
+    public static void ClearClaudeEnvironment(ProcessStartInfo psi)
+    {
+        foreach (var key in psi.Environment.Keys.Where(k =>
+                     k.StartsWith("CLAUDE", StringComparison.OrdinalIgnoreCase) ||
+                     k.StartsWith("ANTHROPIC", StringComparison.OrdinalIgnoreCase)).ToList())
+            psi.Environment.Remove(key);
+    }
+
     static async Task<bool> RunClaudeAsync(string workDir, CancellationToken ct)
     {
         if (FindClaude() is not { } exe) { Log.Write("renew: claude.exe not found"); return false; }
@@ -70,11 +79,7 @@ public sealed class CliTokenRenewer(TimeProvider clock, Func<CancellationToken, 
             RedirectStandardError = true,
         };
         foreach (var arg in Arguments) psi.ArgumentList.Add(arg);
-        // never inherit auth or proxy settings from a Claude session that happened to start us
-        foreach (var key in psi.Environment.Keys.Where(k =>
-                     k.StartsWith("CLAUDE", StringComparison.OrdinalIgnoreCase) ||
-                     k.StartsWith("ANTHROPIC", StringComparison.OrdinalIgnoreCase)).ToList())
-            psi.Environment.Remove(key);
+        ClearClaudeEnvironment(psi);
 
         Process? process;
         try { process = Process.Start(psi); }
