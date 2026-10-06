@@ -6,13 +6,34 @@ Claude usage limits (5-hour session and weekly) in the Windows 11 taskbar, next 
 The numbers match claude.ai → Settings → Usage.
 
 - Left click: details (all limits, reset times, "Refresh").
-- Right click: Refresh now · Start with Windows · Exit.
+- Right click: your Claude Code accounts (click one to switch) · Add account… · Remove account ·
+  Refresh now · Start with Windows · Exit.
 
 Requires a signed-in Claude Code CLI (`claude`). When its login expires, the app runs
 `claude -p ok --model haiku --safe-mode --no-session-persistence` to renew it (at most once every 30 min).
 
 The usage endpoint is rate limited: the app polls every 5 minutes and backs off to 10 → 20 → 30 minutes
 on HTTP 429, keeping the last data on screen.
+
+## Accounts
+
+The menu lists every Claude Code account the app has seen; the active one is ticked. Clicking another account
+switches Claude Code to it at once, with no browser: `claude auth status` shows the new account, new `claude`
+processes use it, and running sessions use it from their next request. The bar shows the new account's limits
+within seconds.
+
+- **Add account…** opens a console window with `claude auth login` in a separate, temporary Claude Code config,
+  so the current login is never signed out. If the browser is signed in to another claude.ai account, copy the
+  link into a private window. The new account becomes active.
+- An account whose saved login has expired (about 30 days unused) reads "sign in again"; clicking it runs the
+  same login.
+- **Remove account** only forgets an inactive account; it is not signed out on the server.
+- An account you sign in to by hand (`/login` in Claude Code) is picked up automatically.
+
+Switching writes Claude Code's login files: only `claudeAiOauth` in `~\.claude\.credentials.json` and
+`oauthAccount` in `~\.claude.json` (plus the account caches Claude Code itself drops on logout). Settings,
+plugins, MCP servers and history stay shared. A copy of both files from before the last switch is kept in
+`%LOCALAPPDATA%\ClaudeUsageBar\backup\`.
 
 ## Download
 
@@ -55,6 +76,8 @@ don't build or release.
 
 - App: `app\ClaudeUsageBar.exe`
 - Log and first-run marker: `%LOCALAPPDATA%\ClaudeUsageBar\`
+- Saved accounts: `%LOCALAPPDATA%\ClaudeUsageBar\accounts.dat` (encrypted for your Windows user with DPAPI)
+- Claude Code login files from before the last switch: `%LOCALAPPDATA%\ClaudeUsageBar\backup\`
 - Autostart: `ClaudeUsageBar.lnk` in the Startup folder
 
 ## Uninstall
