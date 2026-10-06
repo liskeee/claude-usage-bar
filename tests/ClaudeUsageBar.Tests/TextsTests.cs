@@ -10,7 +10,7 @@ public class TextsTests
 {
     // every placeholder the code fills in; a typo in a translation shows up as an unknown one
     static readonly HashSet<string> KnownPlaceholders =
-        ["model", "m", "h", "d", "duration", "time", "weekday", "day", "month", "monthNumber", "countdown", "moment", "ago"];
+        ["model", "m", "h", "d", "duration", "time", "weekday", "day", "month", "monthNumber", "countdown", "moment", "ago", "account"];
 
     public static TheoryData<string> Languages => new(Texts.Available);
 

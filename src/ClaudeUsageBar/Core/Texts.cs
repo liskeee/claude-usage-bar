@@ -13,6 +13,7 @@ public sealed class Texts
     public required TimeTexts Time { get; init; }
     public required PopupTexts Popup { get; init; }
     public required MenuTexts Menu { get; init; }
+    public required AccountTexts Accounts { get; init; }
     public required string AutostartDescription { get; init; }
 
     const string ResourcePrefix = "Localization.";
@@ -97,4 +98,17 @@ public sealed class MenuTexts
     public required string RefreshNow { get; init; }
     public required string StartWithWindows { get; init; }
     public required string Exit { get; init; }
+}
+
+public sealed class AccountTexts
+{
+    public required string Add { get; init; }
+    public required string Remove { get; init; }
+    public required string SignInAgain { get; init; }
+    public required string RemoveConfirm { get; init; }
+    /// Printed by cmd.exe in the login window: must not contain & | < > ^ % or double quotes.
+    public required string LoginHint { get; init; }
+    public required string ClaudeNotFound { get; init; }
+    public required string LoginFailed { get; init; }
+    public required string WriteFailed { get; init; }
 }

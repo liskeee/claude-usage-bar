@@ -42,5 +42,15 @@
     "startWithWindows": "Start with Windows",
     "exit": "Exit"
   },
+  "accounts": {
+    "add": "Add account…",
+    "remove": "Remove account",
+    "signInAgain": "{account} — sign in again",
+    "removeConfirm": "Remove {account} from the list? It won't sign it out.",
+    "loginHint": "Sign in with the account you want to add. If the browser is signed in to another account, copy the link into a private window.",
+    "claudeNotFound": "Claude Code (claude.exe) was not found. Install it and try again.",
+    "loginFailed": "Sign-in didn't finish. Nothing was changed.",
+    "writeFailed": "Couldn't switch the account: Claude Code's login files couldn't be written. Nothing was changed."
+  },
   "autostartDescription": "Claude usage limits in the taskbar"
 }

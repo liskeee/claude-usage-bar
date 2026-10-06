@@ -42,5 +42,15 @@
     "startWithWindows": "Uruchamiaj przy starcie Windows",
     "exit": "Zamknij"
   },
+  "accounts": {
+    "add": "Dodaj konto…",
+    "remove": "Usuń konto",
+    "signInAgain": "{account} — zaloguj ponownie",
+    "removeConfirm": "Usunąć {account} z listy? Konto nie zostanie wylogowane.",
+    "loginHint": "Zaloguj się na konto, które chcesz dodać. Jeśli przeglądarka jest zalogowana na inne konto, skopiuj link do okna prywatnego.",
+    "claudeNotFound": "Nie znaleziono Claude Code (claude.exe). Zainstaluj go i spróbuj ponownie.",
+    "loginFailed": "Logowanie nie zostało dokończone. Nic nie zmieniono.",
+    "writeFailed": "Nie udało się przełączyć konta: nie można zapisać plików logowania Claude Code. Nic nie zmieniono."
+  },
   "autostartDescription": "Limity Claude na pasku zadań"
 }
