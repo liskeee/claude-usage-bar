@@ -228,3 +228,26 @@ enum Logins {
 
     static func accessToken(_ login: AccountLogin?) -> String? { login?.secure["claudeAiOauth"]?["accessToken"]?.string }
 }
+
+extension Logins {
+    /// Writes `login` the way Claude Code stores it, next to content that must survive a switch.
+    static func writeCli(_ fake: FakeSecurity, service: String = KeychainNames.claudeService, account: String = "tester",
+                         config: URL, _ login: AccountLogin) {
+        var item = login.secure
+        item["mcpOAuth"] = .object(["srv|abc": .object(["serverName": .string("srv"), "accessToken": .string("mcp-token")])])
+        fake[service, account] = try! JSONValue.object(item).serialized(pretty: false)
+        let oauthAccount = String(decoding: try! JSONValue.object(login.account).serialized(pretty: false), as: UTF8.self)
+        try! FileManager.default.createDirectory(at: config.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try! """
+            {
+              "numStartups": 5,
+              "projects": { "/Users/łukasz/zażółć gęślą": { "allowedTools": [] } },
+              "someFutureSetting": { "nested": [1, 2.50, "x"] },
+              "cachedGrowthBookFeatures": { "flag": true },
+              "oauthAccount": \(oauthAccount),
+              "modelAccessCache": { "opus": true },
+              "cachedUsageUtilization": 0.42
+            }
+            """.write(to: config, atomically: true, encoding: .utf8)
+    }
+}
