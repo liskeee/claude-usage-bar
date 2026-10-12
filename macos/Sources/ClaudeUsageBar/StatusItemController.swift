@@ -3,7 +3,7 @@ import ClaudeUsageBarCore
 
 /// The menu bar item: the readout is the button's content; left click → popover, right click or ctrl+click → menu.
 @MainActor final class StatusItemController: NSObject {
-    let item = NSStatusBar.system.statusItem(withLength: BarView.width)
+    let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let bar: BarView
     var onLeftClick: (() -> Void)?
     var onRightClick: (() -> Void)?
@@ -11,8 +11,9 @@ import ClaudeUsageBarCore
     init(texts: Texts) {
         bar = BarView(texts: texts)
         super.init()
+        item.length = bar.layout.width // measured from the texts of this language
         guard let button = item.button else { return }
-        bar.frame = NSRect(x: 0, y: 0, width: BarView.width, height: NSStatusBar.system.thickness)
+        bar.frame = NSRect(x: 0, y: 0, width: bar.layout.width, height: NSStatusBar.system.thickness)
         bar.autoresizingMask = [.width, .height]
         button.addSubview(bar)
         button.target = self
