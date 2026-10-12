@@ -2,85 +2,40 @@
 
 [![Build](https://github.com/liskeee/claude-usage-bar/actions/workflows/build.yml/badge.svg)](https://github.com/liskeee/claude-usage-bar/actions/workflows/build.yml)
 
-Claude usage limits (5-hour session and weekly) in the Windows 11 taskbar, next to the system tray arrow.
-The numbers match claude.ai → Settings → Usage.
+Claude usage limits (5-hour session and weekly) always in sight: in the **Windows 11 taskbar** or the **macOS menu bar**.
+The numbers match claude.ai → Settings → Usage. Both apps also switch the account Claude Code (`claude`) is signed in with,
+from their menu, without a browser.
 
-- Left click: details (all limits, reset times, "Refresh").
-- Right click: your Claude Code accounts (click one to switch) · Add account… · Remove account ·
-  Refresh now · Start with Windows · Exit.
+| | Windows | macOS |
+|---|---|---|
+| Where | taskbar, next to the tray arrow | menu bar |
+| Details | left click | left click |
+| Accounts, refresh, autostart, exit | right click | right click (or ctrl+click) |
+| Docs | [windows/README.md](windows/README.md) | [macos/README.md](macos/README.md) |
 
-Requires a signed-in Claude Code CLI (`claude`). When its login expires, the app runs
-`claude -p ok --model haiku --safe-mode --no-session-persistence` to renew it (at most once every 30 min).
-
-The usage endpoint is rate limited: the app polls every 5 minutes and backs off to 10 → 20 → 30 minutes
-on HTTP 429, keeping the last data on screen.
-
-## Accounts
-
-The menu lists every Claude Code account the app has seen; the active one is ticked. Clicking another account
-switches Claude Code to it at once, with no browser: `claude auth status` shows the new account, new `claude`
-processes use it, and running sessions use it from their next request. The bar shows the new account's limits
-within seconds.
-
-- **Add account…** opens a console window with `claude auth login` in a separate, temporary Claude Code config,
-  so the current login is never signed out. If the browser is signed in to another claude.ai account, copy the
-  link into a private window. The new account becomes active.
-- An account whose saved login has expired (about 30 days unused) reads "sign in again"; clicking it runs the
-  same login.
-- **Remove account** only forgets an inactive account; it is not signed out on the server.
-- An account you sign in to by hand (`/login` in Claude Code) is picked up automatically.
-
-Switching writes Claude Code's login files: only `claudeAiOauth` in `~\.claude\.credentials.json` and
-`oauthAccount` in `~\.claude.json` (plus the account caches Claude Code itself drops on logout). Settings,
-plugins, MCP servers and history stay shared. A copy of both files from before the last switch is kept in
-`%LOCALAPPDATA%\ClaudeUsageBar\backup\`.
+Both need a signed-in Claude Code CLI. When its login expires they renew it with one tiny `claude -p` call
+(at most once every 30 min). The usage endpoint is rate limited: they poll every 5 minutes and back off to
+10 → 20 → 30 minutes on HTTP 429, keeping the last data on screen.
 
 ## Download
 
-[Releases](https://github.com/liskeee/claude-usage-bar/releases/latest) → unzip `ClaudeUsageBar.exe` into a folder
-of your choice and run it. The first run turns on "Start with Windows".
+[Releases](https://github.com/liskeee/claude-usage-bar/releases/latest):
 
-- `ClaudeUsageBar-<version>-win-x64.zip` — small, needs the
-  [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0).
-- `ClaudeUsageBar-<version>-win-x64-self-contained.zip` — no runtime needed, ~45 MB.
+- `ClaudeUsageBar-<version>-win-x64.zip`: Windows, needs the [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0).
+- `ClaudeUsageBar-<version>-win-x64-self-contained.zip`: Windows, no runtime needed, ~45 MB.
+- `ClaudeUsageBar-<version>-macos.zip`: macOS 14 or later, Apple silicon and Intel.
 
-Windows starts apps from the Startup folder only after all its other startup entries, so after signing in
-the readout can take a few minutes to appear.
+## Repository
 
-## Languages
-
-The UI follows the Windows display language: Polish on a Polish Windows, English otherwise.
-Translations live in `src/ClaudeUsageBar/Localization/<code>.json` (embedded in the exe), one file per
-two-letter ISO language code. To add a language, copy `en.json` to e.g. `de.json`, translate the values
-(keep the `{placeholders}`) and rebuild — the tests check that every file has all texts and only known
-placeholders.
-
-## Build
-
-```powershell
-dotnet test ClaudeUsageBar.sln
-dotnet publish src/ClaudeUsageBar/ClaudeUsageBar.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o app
 ```
-
-Both release zips: `tools/package.ps1 -Version 1.2.3` (into `dist\`).
+windows/   .NET 9 / WinForms app, tests, packaging scripts
+macos/     Swift package: ClaudeUsageBarCore (logic, tested) and the AppKit app
+shared/    translations (localization/<code>.json) and API fixtures used by both
+```
 
 ## Releases
 
-GitHub Actions ([build.yml](.github/workflows/build.yml)) runs the tests and builds both zips for every pull request
-and every push to `main`. A push to `main` also publishes a GitHub Release, tagged `v<major>.<minor>.<n>`:
-major and minor come from `<Version>` in `ClaudeUsageBar.csproj`, `n` counts up from the last tag
-(`tools/next-version.ps1`). To start a new line, e.g. 1.1.0, change `<Version>`. Pushes that only touch `*.md` files
-don't build or release.
-
-## Files
-
-- App: `app\ClaudeUsageBar.exe`
-- Log and first-run marker: `%LOCALAPPDATA%\ClaudeUsageBar\`
-- Saved accounts: `%LOCALAPPDATA%\ClaudeUsageBar\accounts.dat` (encrypted for your Windows user with DPAPI)
-- Claude Code login files from before the last switch: `%LOCALAPPDATA%\ClaudeUsageBar\backup\`
-- Autostart: `ClaudeUsageBar.lnk` in the Startup folder
-
-## Uninstall
-
-Right click → untick "Start with Windows" → Exit, then delete this folder
-and `%LOCALAPPDATA%\ClaudeUsageBar`.
+GitHub Actions ([build.yml](.github/workflows/build.yml)) tests and packages both apps for every pull request and every
+push to `main`. A push to `main` also publishes one GitHub Release with all zips, tagged `v<major>.<minor>.<n>`. Major and
+minor come from `<Version>` in `windows/src/ClaudeUsageBar/ClaudeUsageBar.csproj`, and `n` counts up from the last tag
+(`windows/tools/next-version.ps1`). Pushes that only touch `*.md` files don't build or release.

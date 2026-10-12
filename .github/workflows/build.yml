@@ -18,17 +18,31 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: windows
+  version:
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # tags, for the next version number
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          $version = ./windows/tools/next-version.ps1
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "Version: $version"
+
+  build-windows:
+    needs: version
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -37,26 +51,41 @@ jobs:
       - name: Test
         run: dotnet test ClaudeUsageBar.sln -c Release --nologo
 
-      - name: Version
-        id: version
-        run: |
-          $version = ./tools/next-version.ps1
-          "version=$version" >> $env:GITHUB_OUTPUT
-          "Version: $version"
-
       - name: Package
-        run: ./tools/package.ps1 -Version ${{ steps.version.outputs.version }} -Out ../dist
+        run: ./tools/package.ps1 -Version ${{ needs.version.outputs.version }} -Out ../dist
 
       - uses: actions/upload-artifact@v7
         with:
-          name: ClaudeUsageBar-${{ steps.version.outputs.version }}
-          path: |
-            dist/*.zip
-            dist/SHA256SUMS.txt
+          name: ClaudeUsageBar-${{ needs.version.outputs.version }}-windows
+          path: dist/*.zip
+          if-no-files-found: error
+
+  build-macos:
+    needs: version
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: macos
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Test
+        run: swift test
+
+      - name: Package
+        run: tools/package.sh ${{ needs.version.outputs.version }} ../dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ClaudeUsageBar-${{ needs.version.outputs.version }}-macos
+          path: dist/*.zip
           if-no-files-found: error
 
   release:
-    needs: build
+    needs: [version, build-windows, build-macos]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -64,13 +93,18 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: ClaudeUsageBar-${{ needs.build.outputs.version }}
+          pattern: ClaudeUsageBar-${{ needs.version.outputs.version }}-*
+          merge-multiple: true
           path: dist
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum *.zip > SHA256SUMS.txt
 
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: v${{ needs.build.outputs.version }}
+          TAG: v${{ needs.version.outputs.version }}
         run: >
           gh release create "$TAG" dist/*
           --repo "$GITHUB_REPOSITORY"
