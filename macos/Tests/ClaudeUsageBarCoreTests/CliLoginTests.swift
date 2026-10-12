@@ -79,6 +79,24 @@ struct CliLoginTests {
         #expect(try FileManager.default.attributesOfItem(atPath: config.path)[.posixPermissions] as? Int == 0o600)
     }
 
+    @Test func write_newConfig_isOnlyForTheUser() async throws {
+        Logins.writeCli(fake, config: config, a)
+        try FileManager.default.removeItem(at: config) // e.g. a fresh machine where Claude Code never saved its config
+
+        try await cli().write(b)
+
+        #expect(try FileManager.default.attributesOfItem(atPath: config.path)[.posixPermissions] as? Int == 0o600)
+    }
+
+    @Test func write_backupIsOnlyForTheUser() async throws {
+        Logins.writeCli(fake, config: config, a)
+
+        try await cli(backup: true).write(b)
+
+        #expect(try FileManager.default.attributesOfItem(atPath: temp["backup"].path)[.posixPermissions] as? Int == 0o700)
+        #expect(try FileManager.default.attributesOfItem(atPath: temp["backup/credentials.dat"].path)[.posixPermissions] as? Int == 0o600)
+    }
+
     @Test func write_withoutAnItem_createsIt() async throws {
         Logins.writeCli(fake, config: config, a)
         fake[KeychainNames.claudeService, "tester"] = nil

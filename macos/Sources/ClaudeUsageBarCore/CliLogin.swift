@@ -118,7 +118,7 @@ public struct CliLogin: Sendable {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let temp = directory.appending(path: ".\(globalConfig.lastPathComponent).\(UUID().uuidString).tmp")
         defer { try? FileManager.default.removeItem(at: temp) }
-        try JSONValue.object(root).serialized().write(to: temp)
+        try ConfigFile.writePrivate(try JSONValue.object(root).serialized(), to: temp)
         if let permissions = before?.permissions {
             try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: temp.path)
         }
@@ -134,13 +134,17 @@ public struct CliLogin: Sendable {
         guard let backupDir else { return }
         do {
             try FileManager.default.createDirectory(at: backupDir, withIntermediateDirectories: true)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: backupDir.path)
             let configCopy = backupDir.appending(path: "claude.json")
             try? FileManager.default.removeItem(at: configCopy)
             if FileManager.default.fileExists(atPath: globalConfig.path) {
                 try FileManager.default.copyItem(at: globalConfig, to: configCopy)
             }
             if let item, let sealBackup {
-                try await sealBackup(item).write(to: backupDir.appending(path: "credentials.dat"), options: .atomic)
+                let sealed = try await sealBackup(item)
+                let target = backupDir.appending(path: "credentials.dat")
+                try? FileManager.default.removeItem(at: target)
+                try ConfigFile.writePrivate(sealed, to: target)
             }
         } catch {
             throw CliLoginError.notWritten("backup: \(error)")
@@ -178,6 +182,16 @@ struct ConfigFile {
         return ConfigFile(root: root, modified: attributes[.modificationDate] as? Date,
                           size: (attributes[.size] as? NSNumber)?.intValue,
                           permissions: (attributes[.posixPermissions] as? NSNumber)?.intValue)
+    }
+
+    /// A new file only the user can read from its first byte: the config names the account and every project,
+    /// and a file written first and restricted afterwards would be readable by others in between.
+    static func writePrivate(_ data: Data, to url: URL) throws {
+        let descriptor = open(url.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
+        guard descriptor >= 0 else { throw CliLoginError.notWritten("can't create \(url.lastPathComponent): errno \(errno)") }
+        let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        try handle.write(contentsOf: data)
+        try handle.close()
     }
 
     static func changed(_ url: URL, since before: ConfigFile?) -> Bool {
