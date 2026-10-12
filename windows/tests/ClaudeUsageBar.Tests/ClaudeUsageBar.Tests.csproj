@@ -15,7 +15,8 @@
     <ProjectReference Include="..\..\src\ClaudeUsageBar\ClaudeUsageBar.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- shared with the macOS tests; copied to the same Fixtures\ output folder as before -->
+    <None Include="..\..\..\shared\fixtures\**" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

@@ -20,6 +20,9 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -42,7 +45,7 @@ jobs:
           "Version: $version"
 
       - name: Package
-        run: ./tools/package.ps1 -Version ${{ steps.version.outputs.version }} -Out dist
+        run: ./tools/package.ps1 -Version ${{ steps.version.outputs.version }} -Out ../dist
 
       - uses: actions/upload-artifact@v7
         with:

@@ -12,8 +12,8 @@
     <Version>1.0.0</Version>
   </PropertyGroup>
   <ItemGroup>
-    <!-- one file per language, named by its two-letter ISO code -->
-    <EmbeddedResource Include="Localization\*.json" LogicalName="Localization.%(Filename).json" />
+    <!-- one file per language, named by its two-letter ISO code; shared with the macOS app -->
+    <EmbeddedResource Include="..\..\..\shared\localization\*.json" LogicalName="Localization.%(Filename).json" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
