@@ -4,3 +4,6 @@ app/
 *.user
 .vs/
 dist/
+.build/
+.swiftpm/
+macos/dist/

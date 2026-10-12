@@ -52,5 +52,10 @@
     "loginFailed": "Logowanie nie zostało dokończone. Nic nie zmieniono.",
     "writeFailed": "Nie udało się przełączyć konta: nie można zapisać plików logowania Claude Code. Nic nie zmieniono."
   },
-  "autostartDescription": "Limity Claude na pasku zadań"
+  "autostartDescription": "Limity Claude na pasku zadań",
+  "macos": {
+    "menu": { "startAtLogin": "Uruchamiaj przy logowaniu", "quit": "Zakończ ClaudeUsageBar" },
+    "accounts": { "claudeNotFound": "Nie znaleziono Claude Code (claude). Zainstaluj go i spróbuj ponownie." },
+    "dialogs": { "remove": "Usuń", "cancel": "Anuluj", "ok": "OK" }
+  }
 }
