@@ -58,6 +58,7 @@ claude-usage-bar/
 │  ├─ Sources/ClaudeUsageBarCore/
 │  ├─ Sources/ClaudeUsageBar/
 │  ├─ Tests/ClaudeUsageBarCoreTests/
+│  ├─ Resources/Info.plist  ← template, version filled in by package.sh
 │  ├─ tools/package.sh
 │  └─ README.md
 ├─ shared/
@@ -130,7 +131,8 @@ Each file matches its C# counterpart in `windows/src/ClaudeUsageBar/Core/`, so f
 - `KeychainNames`: the Claude Code service name for the default dir and for a `CLAUDE_CONFIG_DIR`, and the
   account name rule.
 - `CredentialStore`: from the active item's `claudeAiOauth` → `Credentials(accessToken, expiresAt,
-  subscriptionType, rateLimitTier)`. Its description never contains the token.
+  subscriptionType, rateLimitTier)`. Its description never contains the token. A locked Keychain throws.
+  `UsageService` then reports a transient error and keeps its data; it does not switch to "sign in".
 - `TokenRenewer`: `claude -p ok --model haiku --safe-mode --no-session-persistence`, at most once every 30 min,
   90 s timeout, working directory in Application Support. Finds `claude` in `PATH`, `~/.local/bin`,
   `/opt/homebrew/bin`, `/usr/local/bin` (an app started at login has a minimal `PATH`). Removes every `CLAUDE*`
@@ -168,10 +170,12 @@ Each file matches its C# counterpart in `windows/src/ClaudeUsageBar/Core/`, so f
        leave `mcpOAuth` and any other key as it was, and write it back.
     3. Update `~/.claude.json`: set `oauthAccount`, remove the same account caches as on Windows
        (`CliLogin.AccountCaches`), then write it atomically (temp file in the same dir, then rename). If the
-       file's modification date or size changed since it was read, re-read and retry, up to 3 attempts. JSON is
-       written with `JSONSerialization` (pretty-printed, slashes unescaped). Values round-trip, including
-       non-ASCII text, large integers and booleans. Key order does not, which is harmless because Claude Code
-       rewrites the file in its own order on its next save.
+       file's modification date or size changed since it was read, re-read and retry, up to 3 attempts. The
+       original file permissions are kept. JSON goes through a small `JSONValue` enum (null, bool, int64, double,
+       string, array, object) and `JSONEncoder` (pretty-printed, sorted keys, slashes unescaped). Values
+       round-trip, including non-ASCII text, integers vs. doubles and booleans. Key order does not, which is
+       harmless because Claude Code rewrites the file in its own order on its next save. A file that does not
+       parse (for example a lone UTF-16 surrogate) fails the switch, and nothing changes.
     4. If step 3 fails, write the item value from step 1 back.
   - `deleteItem()` is used only for the temporary add-account login.
 - `AccountStore`: `~/Library/Application Support/ClaudeUsageBar/accounts.dat`. The JSON is shaped like the
@@ -257,8 +261,9 @@ Each file matches its C# counterpart in `windows/src/ClaudeUsageBar/Core/`, so f
 - `Contents/MacOS/ClaudeUsageBar`.
 - `Contents/Info.plist` with bundle id, version, `LSUIElement`, `LSMinimumSystemVersion` 14.0.
 - `Contents/Resources/localization/*.json` copied from `shared/`.
-- `Contents/Resources/AppIcon.icns`, copied from `macos/Resources/AppIcon.icns`. That file is generated once
-  from the spark by `macos/tools/make-icon.swift` and committed.
+- `Contents/Resources/AppIcon.icns`, rendered at package time by the built binary itself
+  (`ClaudeUsageBar --render-icon <dir>.iconset`, using the same spark code as the bar) and converted with
+  `iconutil`. No icon file is committed.
 
 Then `codesign --force --deep -s -` (ad-hoc), and `ditto -c -k --keepParent` into
 `ClaudeUsageBar-<version>-macos.zip`.
@@ -320,7 +325,7 @@ Manual check on this Mac, by the user, since a switch also moves the running Cla
 
 ## Docs
 
-- Root `README.md`: what it is, a screenshot per platform, downloads (Windows zips, macOS zip), how accounts
+- Root `README.md`: what it is, a table comparing the two apps, downloads (Windows zips, macOS zip), how accounts
   work on both systems, and the repo layout.
 - `windows/README.md`: today's README minus the overview, with paths updated.
 - `macos/README.md`:
