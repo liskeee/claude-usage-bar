@@ -196,3 +196,35 @@ final class TempDir: Sendable {
         }
     }
 }
+
+/// Logins shaped like Claude Code 2.1's Keychain item and ~/.claude.json; every token is fake.
+enum Logins {
+    static let defaultRefreshExpiry = iso("2026-11-01T00:00:00Z")
+
+    static func make(_ id: String, _ email: String, token: String = "1", org: String = "org-1", orgName: String? = nil,
+                     tier: String = "default_claude_max_5x", refreshExpires: Date? = nil,
+                     extraSecure: [String: JSONValue] = [:]) -> AccountLogin {
+        var secure: [String: JSONValue] = [
+            "claudeAiOauth": .object([
+                "accessToken": .string("access-\(id)-\(token)"),
+                "refreshToken": .string("refresh-\(id)-\(token)"),
+                "expiresAt": .int(1790271138070),
+                "refreshTokenExpiresAt": .int(Int64((refreshExpires ?? defaultRefreshExpiry).timeIntervalSince1970 * 1000)),
+                "scopes": .array([.string("user:inference"), .string("user:profile")]),
+                "subscriptionType": .string("max"),
+                "rateLimitTier": .string(tier),
+            ]),
+            "organizationUuid": .string(org),
+        ]
+        secure.merge(extraSecure) { _, extra in extra }
+        return AccountLogin(secure: secure, account: [
+            "accountUuid": .string("acc-\(id)"),
+            "emailAddress": .string(email),
+            "organizationUuid": .string(org),
+            "organizationName": .string(orgName ?? "\(email)'s Organization"),
+            "displayName": .string(id),
+        ])
+    }
+
+    static func accessToken(_ login: AccountLogin?) -> String? { login?.secure["claudeAiOauth"]?["accessToken"]?.string }
+}
