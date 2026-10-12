@@ -15,4 +15,6 @@ import AppKit
         self.controller = controller
         controller.start()
     }
+
+    func applicationWillTerminate(_ notification: Notification) { controller?.stop() }
 }
