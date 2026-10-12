@@ -17,3 +17,23 @@ enum Fixtures {
 }
 
 func iso(_ text: String) -> Date { UsageParser.date(text)! }
+
+enum Lang {
+    static let en = try! Texts.load("en", from: Repo.localization)
+    static let pl = try! Texts.load("pl", from: Repo.localization)
+    static func get(_ code: String) -> Texts { code == "pl" ? pl : en }
+}
+
+/// Dates in a fixed time zone, so formatting tests don't depend on the machine running them.
+enum Warsaw {
+    static let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Warsaw")!
+        return calendar
+    }()
+
+    static func date(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int, plus seconds: Double = 0) -> Date {
+        calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
+            .addingTimeInterval(seconds)
+    }
+}

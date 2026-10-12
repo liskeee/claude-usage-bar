@@ -52,5 +52,10 @@
     "loginFailed": "Sign-in didn't finish. Nothing was changed.",
     "writeFailed": "Couldn't switch the account: Claude Code's login files couldn't be written. Nothing was changed."
   },
-  "autostartDescription": "Claude usage limits in the taskbar"
+  "autostartDescription": "Claude usage limits in the taskbar",
+  "macos": {
+    "menu": { "startAtLogin": "Start at login", "quit": "Quit ClaudeUsageBar" },
+    "accounts": { "claudeNotFound": "Claude Code (claude) was not found. Install it and try again." },
+    "dialogs": { "remove": "Remove", "cancel": "Cancel", "ok": "OK" }
+  }
 }
