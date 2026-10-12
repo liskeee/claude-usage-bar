@@ -146,3 +146,53 @@ final class TempDir: Sendable {
 
     subscript(_ relative: String) -> URL { root.appending(path: relative) }
 }
+
+@MainActor final class FakeCredentials: CredentialSource {
+    var current: Credentials?
+    var error: (any Error)?
+    func read() async throws -> Credentials? {
+        if let error { throw error }
+        return current
+    }
+}
+
+@MainActor final class FakeRenewer: TokenRenewing {
+    var calls = 0
+    var resets = 0
+    var onRenew: () -> Bool = { false }
+    func tryRenew() async -> Bool { calls += 1; return onRenew() }
+    func reset() { resets += 1 }
+}
+
+@MainActor final class FakeAPI: UsageAPI {
+    var tokens: [String] = []
+    var respond: (String) -> UsageAPIResult = { _ in .ok(Fixtures.usage) }
+    /// When set, wins over `respond`: lets a test hold a fetch open.
+    var respondAsync: ((String) async -> UsageAPIResult)?
+
+    func fetch(accessToken: String) async -> UsageAPIResult {
+        tokens.append(accessToken)
+        if let respondAsync { return await respondAsync(accessToken) }
+        return respond(accessToken)
+    }
+}
+
+/// A value a test hands over later, to hold an async call open.
+@MainActor final class Pending<T: Sendable> {
+    private var value: T?
+    private var waiter: CheckedContinuation<T, Never>?
+
+    func wait() async -> T {
+        if let value { return value }
+        return await withCheckedContinuation { waiter = $0 }
+    }
+
+    func resolve(_ result: T) {
+        if let waiter {
+            self.waiter = nil
+            waiter.resume(returning: result)
+        } else {
+            value = result
+        }
+    }
+}
