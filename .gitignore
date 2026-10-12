@@ -6,3 +6,4 @@ app/
 dist/
 .build/
 .swiftpm/
+macos/dist/
