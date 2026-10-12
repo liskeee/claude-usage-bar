@@ -286,6 +286,72 @@ import Testing
         #expect(fake[temporaryService(leftover), "tester"] == nil)
     }
 
+    @Test func removeLeftoverLogins_removesDirsAndItemsFromAnEarlierRun() async throws {
+        let leftover = temp["data/login-0123"] // the app quit or crashed while Terminal was still waiting
+        try FileManager.default.createDirectory(at: leftover, withIntermediateDirectories: true)
+        fake[temporaryService(leftover), "tester"] = Data("{}".utf8)
+
+        await make().removeLeftoverLogins()
+
+        #expect(!FileManager.default.fileExists(atPath: leftover.path))
+        #expect(fake[temporaryService(leftover), "tester"] == nil)
+    }
+
+    @Test func removeLeftoverLogins_whileALoginRuns_keepsIt() async throws {
+        let finish = Pending<Bool>()
+        login = { _ in await finish.wait() }
+        let switcher = make()
+        let adding = Task { try await switcher.addAccount(email: nil) }
+        while logins.isEmpty { await Task.yield() }
+
+        await switcher.removeLeftoverLogins()
+
+        let running = try #require(logins.first).dir
+        #expect(FileManager.default.fileExists(atPath: running.path))
+        #expect(switcher.loginDir == running)
+        finish.resolve(false)
+        await #expect(throws: AccountError.self) { try await adding.value }
+        #expect(switcher.loginDir == nil)
+    }
+
+    @Test func cancelLogin_closesTheRunningLoginsScript() async throws {
+        let script = Process() // stands in for the Terminal script
+        script.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        script.arguments = ["30"]
+        try script.run()
+        let finish = Pending<Bool>()
+        login = { dir in
+            try "\(script.processIdentifier)\n".write(to: dir.appending(path: "pid"), atomically: true, encoding: .utf8)
+            return await finish.wait()
+        }
+        let switcher = make()
+        let adding = Task { try await switcher.addAccount(email: nil) }
+        while logins.isEmpty || !FileManager.default.fileExists(atPath: logins[0].dir.appending(path: "pid").path) { await Task.yield() }
+
+        switcher.cancelLogin()
+
+        script.waitUntilExit()
+        #expect(script.terminationReason == .uncaughtSignal)
+        finish.resolve(false)
+        _ = try? await adding.value
+    }
+
+    @Test func cancelLogin_withoutARunningLogin_signalsNothing() throws {
+        let unrelated = Process() // its pid sits in a login dir left by an earlier run
+        unrelated.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        unrelated.arguments = ["30"]
+        try unrelated.run()
+        defer { unrelated.terminate() }
+        let leftover = temp["data/login-0123"]
+        try FileManager.default.createDirectory(at: leftover, withIntermediateDirectories: true)
+        try "\(unrelated.processIdentifier)\n".write(to: leftover.appending(path: "pid"), atomically: true, encoding: .utf8)
+
+        make().cancelLogin()
+
+        Thread.sleep(forTimeInterval: 0.2)
+        #expect(unrelated.isRunning)
+    }
+
     @Test func remove_inactiveAccount_forgetsIt_withoutTouchingTheCli() async throws {
         try await store.upsert(SavedAccount(login: b, savedAt: now))
         signInCli(a)

@@ -83,7 +83,10 @@ import SwiftUI
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshNow() }
         }
-        refreshNow()
+        Task {
+            await switcher.removeLeftoverLogins() // a login the app quit or crashed during left tokens behind
+            refreshNow()
+        }
         if CommandLine.arguments.contains("--show-popover") {
             Task {
                 try? await Task.sleep(for: .seconds(3))
@@ -100,13 +103,8 @@ import SwiftUI
         FileManager.default.createFile(atPath: paths.firstRunMarker.path, contents: Data())
     }
 
-    /// On quit: close a running add-account Terminal script (its login dir is cleaned up on the next add).
-    func stop() {
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: paths.support.path)) ?? []
-        for name in names where name.hasPrefix("login-") {
-            if let pid = LoginRunner.readInt(paths.support.appending(path: "\(name)/pid")) { kill(pid_t(pid), SIGHUP) }
-        }
-    }
+    /// On quit: close the add-account Terminal script this app started, if one runs (its dir goes at the next launch).
+    func stop() { switcher.cancelLogin() }
 
     func tick() {
         status.bar.tick()

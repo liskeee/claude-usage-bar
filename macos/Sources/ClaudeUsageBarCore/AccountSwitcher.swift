@@ -21,6 +21,8 @@ public enum AccountError: Error, Equatable {
 
     public private(set) var active: AccountLogin?
     public private(set) var isLoginRunning = false
+    /// The temporary config dir of the login running now; nil when none runs.
+    public private(set) var loginDir: URL?
     /// Claude Code now has another login (or a fresh one); everything shown for the previous one is stale.
     public var onSwitched: (() -> Void)?
 
@@ -86,15 +88,33 @@ public enum AccountError: Error, Equatable {
         if isLoginRunning { return }
         isLoginRunning = true
         let dir = loginRoot.appending(path: "login-\(UUID().uuidString.lowercased())")
+        loginDir = dir
         do {
             try await addAccount(email: email, in: dir)
         } catch {
-            await removeLoginDir(dir) // it holds live tokens
-            isLoginRunning = false
+            await finishLogin(dir) // it holds live tokens
             throw error
         }
+        await finishLogin(dir)
+    }
+
+    private func finishLogin(_ dir: URL) async {
         await removeLoginDir(dir)
+        loginDir = nil
         isLoginRunning = false
+    }
+
+    /// At launch: the dirs and Keychain items of a login the app quit or crashed during.
+    public func removeLeftoverLogins() async {
+        guard !isLoginRunning else { return }
+        await removeLeftoverLoginDirs()
+    }
+
+    /// On quit: closes the Terminal script of the login this app started, and nothing else. A pid file left by an
+    /// earlier run may name an unrelated process by now.
+    public func cancelLogin() {
+        guard let loginDir, let pid = LoginRunner.readInt(loginDir.appending(path: "pid")) else { return }
+        kill(pid_t(pid), SIGHUP)
     }
 
     private func addAccount(email: String?, in dir: URL) async throws {
