@@ -108,25 +108,30 @@ public struct CliLogin: Sendable {
         throw CliLoginError.notWritten("\(globalConfig.lastPathComponent) not written: \(lastError)")
     }
 
+    /// The config file itself: a dotfiles setup may link ~/.claude.json to a file kept elsewhere, and the link must
+    /// stay a link while its target is checked, replaced and backed up.
+    var configFile: URL { globalConfig.resolvingSymlinksInPath() }
+
     /// Read → edit → atomic replace, keeping the file's permissions. Running sessions rewrite ~/.claude.json often:
     /// when it changed after we read it, this throws and the caller starts over from its new content.
     func replaceConfig(_ edit: (inout [String: JSONValue]) -> Void) throws {
-        let before = try ConfigFile.read(globalConfig)
+        let file = configFile
+        let before = try ConfigFile.read(file)
         var root = before?.root ?? [:]
         edit(&root)
-        let directory = globalConfig.deletingLastPathComponent()
+        let directory = file.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let temp = directory.appending(path: ".\(globalConfig.lastPathComponent).\(UUID().uuidString).tmp")
+        let temp = directory.appending(path: ".\(file.lastPathComponent).\(UUID().uuidString).tmp")
         defer { try? FileManager.default.removeItem(at: temp) }
         try ConfigFile.writePrivate(try JSONValue.object(root).serialized(), to: temp)
         if let permissions = before?.permissions {
             try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: temp.path)
         }
-        beforeReplace?(globalConfig)
-        if ConfigFile.changed(globalConfig, since: before) {
-            throw CliLoginError.notWritten("\(globalConfig.lastPathComponent) changed while being updated")
+        beforeReplace?(file)
+        if ConfigFile.changed(file, since: before) {
+            throw CliLoginError.notWritten("\(file.lastPathComponent) changed while being updated")
         }
-        guard rename(temp.path, globalConfig.path) == 0 else { throw CliLoginError.notWritten("rename failed: errno \(errno)") }
+        guard rename(temp.path, file.path) == 0 else { throw CliLoginError.notWritten("rename failed: errno \(errno)") }
     }
 
     /// The config and the (sealed) Keychain item as they were before the last switch.
@@ -137,8 +142,8 @@ public struct CliLogin: Sendable {
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: backupDir.path)
             let configCopy = backupDir.appending(path: "claude.json")
             try? FileManager.default.removeItem(at: configCopy)
-            if FileManager.default.fileExists(atPath: globalConfig.path) {
-                try FileManager.default.copyItem(at: globalConfig, to: configCopy)
+            if FileManager.default.fileExists(atPath: configFile.path) {
+                try FileManager.default.copyItem(at: configFile, to: configCopy)
             }
             if let item, let sealBackup {
                 let sealed = try await sealBackup(item)

@@ -97,6 +97,43 @@ struct CliLoginTests {
         #expect(try FileManager.default.attributesOfItem(atPath: temp["backup/credentials.dat"].path)[.posixPermissions] as? Int == 0o600)
     }
 
+    @Test func write_symlinkedConfig_updatesTheTarget_andKeepsTheLink() async throws {
+        // dotfiles setups link ~/.claude.json to a file kept elsewhere
+        let target = temp["dotfiles/claude.json"]
+        Logins.writeCli(fake, config: target, a)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
+        try FileManager.default.createDirectory(at: config.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: config, withDestinationURL: target)
+
+        try await cli(backup: true).write(b)
+
+        #expect(try FileManager.default.attributesOfItem(atPath: config.path)[.type] as? FileAttributeType == .typeSymbolicLink)
+        #expect(try JSONValue.parse(Data(contentsOf: target))["oauthAccount"] == .object(b.account))
+        #expect(try FileManager.default.attributesOfItem(atPath: target.path)[.posixPermissions] as? Int == 0o600)
+        #expect(try FileManager.default.attributesOfItem(atPath: temp["backup/claude.json"].path)[.type] as? FileAttributeType == .typeRegular)
+        #expect(try JSONValue.parse(Data(contentsOf: temp["backup/claude.json"]))["oauthAccount"] == .object(a.account))
+    }
+
+    @Test func write_symlinkedConfigChangedMeanwhile_isDetected() async throws {
+        let target = temp["dotfiles/claude.json"]
+        Logins.writeCli(fake, config: target, a)
+        try FileManager.default.createDirectory(at: config.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: config, withDestinationURL: target)
+        let calls = OSAllocatedUnfairLock(initialState: 0)
+        var cli = cli()
+        cli.beforeReplace = { url in
+            guard calls.withLock({ $0 += 1; return $0 }) == 1 else { return }
+            var root = try! JSONValue.parse(Data(contentsOf: url)).object!
+            root["numStartups"] = .int(6) // a running session saves through the link
+            try! JSONValue.object(root).serialized().write(to: url)
+        }
+
+        try await cli.write(b)
+
+        #expect(try JSONValue.parse(Data(contentsOf: target))["numStartups"] == .int(6))
+        #expect(calls.withLock { $0 } == 2)
+    }
+
     @Test func write_withoutAnItem_createsIt() async throws {
         Logins.writeCli(fake, config: config, a)
         fake[KeychainNames.claudeService, "tester"] = nil
