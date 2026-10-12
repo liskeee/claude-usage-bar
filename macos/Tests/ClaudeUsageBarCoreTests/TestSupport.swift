@@ -124,3 +124,25 @@ final class FakeSecurity: ProcessRunner, Sendable {
         return args[index + 1]
     }
 }
+
+final class FakeTime: TimeSource, Sendable {
+    private let current: OSAllocatedUnfairLock<Date>
+    init(_ date: Date) { current = OSAllocatedUnfairLock(initialState: date) }
+    func now() -> Date { current.withLock { $0 } }
+    func set(_ date: Date) { current.withLock { $0 = date } }
+    func advance(_ seconds: TimeInterval) { current.withLock { $0 = $0.addingTimeInterval(seconds) } }
+}
+
+/// A fresh directory under the temporary folder, deleted when the test's suite instance goes away.
+final class TempDir: Sendable {
+    let root: URL
+
+    init() {
+        root = FileManager.default.temporaryDirectory.appending(path: "cub-test-\(UUID().uuidString)")
+        try! FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    }
+
+    deinit { try? FileManager.default.removeItem(at: root) }
+
+    subscript(_ relative: String) -> URL { root.appending(path: relative) }
+}
