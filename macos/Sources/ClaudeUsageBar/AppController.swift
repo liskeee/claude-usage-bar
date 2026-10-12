@@ -1,17 +1,20 @@
 import AppKit
 import ClaudeUsageBarCore
+import SwiftUI
 
-/// Wires the service, the readout, the menu and the timers together.
-@MainActor final class AppController {
+/// Wires the service, the readout, the popover, the menu and the timers together.
+@MainActor final class AppController: NSObject, NSPopoverDelegate {
     let paths: AppPaths
     let texts: Texts
     let service: UsageService
     let status: StatusItemController
+    let details: DetailsModel
+    let popover = NSPopover()
     private var refreshTimer: Timer?
     private var tickTimer: Timer?
 
-    init() {
-        // locals first: a class can't read its own properties before they are all set
+    override init() {
+        // locals first: a class can't read its own properties before super.init
         let paths = AppPaths.standard()
         Log.configure(directory: paths.logs)
         let texts = Self.loadTexts()
@@ -25,6 +28,11 @@ import ClaudeUsageBarCore
             renewer: CliTokenRenewer.standard(runner: runner, workDir: paths.renewDir, cliLock: AsyncLock()),
             time: SystemTime())
         status = StatusItemController(texts: texts)
+        details = DetailsModel(texts: texts)
+        super.init()
+        popover.behavior = .transient
+        popover.delegate = self
+        popover.contentViewController = NSHostingController(rootView: DetailsView(model: details))
     }
 
     static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev" }
@@ -39,8 +47,13 @@ import ClaudeUsageBarCore
 
     func start() {
         Log.write("start \(Self.version)")
-        service.onChange = { [weak self] state in self?.status.bar.state = state }
+        service.onChange = { [weak self] state in
+            self?.status.bar.state = state
+            self?.details.state = state
+        }
+        status.onLeftClick = { [weak self] in self?.togglePopover() }
         status.onRightClick = { [weak self] in self?.showMenu() }
+        details.onRefresh = { [weak self] in self?.refreshNow() }
         tickTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -48,9 +61,18 @@ import ClaudeUsageBarCore
             MainActor.assumeIsolated { self?.refreshNow() }
         }
         refreshNow()
+        if CommandLine.arguments.contains("--show-popover") {
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                togglePopover()
+            }
+        }
     }
 
-    func tick() { status.bar.tick() }
+    func tick() {
+        status.bar.tick()
+        if popover.isShown { details.now = Date() }
+    }
 
     func refreshNow() {
         refreshTimer?.invalidate()
@@ -66,6 +88,20 @@ import ClaudeUsageBarCore
             MainActor.assumeIsolated { self?.refreshNow() }
         }
     }
+
+    func togglePopover() {
+        if popover.isShown {
+            popover.performClose(nil)
+            return
+        }
+        guard let button = status.item.button else { return }
+        details.now = Date()
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        button.highlight(true)
+        NSApp.activate()
+    }
+
+    func popoverDidClose(_ notification: Notification) { status.item.button?.highlight(false) }
 
     func showMenu() {
         let menu = NSMenu()
